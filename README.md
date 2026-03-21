@@ -1,59 +1,87 @@
-# Enhanced Vite React TypeScript Template
+# WealthLens AI Mentor
 
-This template includes built-in detection for missing CSS variables between your Tailwind config and CSS files.
+This repo now contains:
 
-## Features
+- `frontend/` - Next.js app
+- `backend/` - FastAPI app with Claude-backed portfolio analysis
+- Existing Vite app at root (`src/`) kept for backward compatibility during migration
 
-- **CSS Variable Detection**: Automatically detects if CSS variables referenced in `tailwind.config.cjs` are defined in `src/index.css`
-- **Enhanced Linting**: Includes ESLint, Stylelint, and custom CSS variable validation
-- **Shadcn/ui**: Pre-configured with all Shadcn components
-- **Modern Stack**: Vite + React + TypeScript + Tailwind CSS
+## Backend Setup (FastAPI)
 
-## Available Scripts
+1. Go to backend folder:
 
 ```bash
-# Run all linting (includes CSS variable check)
-npm run lint
-
-# Check only CSS variables
-npm run check:css-vars
-
-# Individual linting
-npm run lint:js    # ESLint
-npm run lint:css   # Stylelint
+cd backend
 ```
 
-## CSS Variable Detection
+2. Create and activate virtual environment (recommended):
 
-The template includes a custom script that:
-
-1. **Parses `tailwind.config.cjs`** to find all `var(--variable)` references
-2. **Parses `src/index.css`** to find all defined CSS variables (`--variable:`)
-3. **Cross-references** them to find missing definitions
-4. **Reports undefined variables** with clear error messages
-
-### Example Output
-
-When CSS variables are missing:
-```
-❌ Undefined CSS variables found in tailwind.config.cjs:
-   --sidebar-background
-   --sidebar-foreground
-   --sidebar-primary
-
-Add these variables to src/index.css
+```bash
+python -m venv .venv
+source .venv/bin/activate  # macOS/Linux
+# or
+.venv\Scripts\activate     # Windows PowerShell
 ```
 
-When all variables are defined:
+3. Install dependencies:
+
+```bash
+pip install -r requirements.txt
 ```
-✅ All CSS variables in tailwind.config.cjs are defined
+
+4. Configure environment variable:
+
+```bash
+# backend/.env
+ANTHROPIC_API_KEY=your_key_here
 ```
 
-## How It Works
+5. Start API server:
 
-The detection happens during the `npm run lint` command, which will:
-- Exit with error code 1 if undefined variables are found
-- Show exactly which variables need to be added to your CSS file
-- Integrate seamlessly with your development workflow
+```bash
+uvicorn main:app --reload
+```
 
-This prevents runtime CSS issues where Tailwind classes reference undefined CSS variables.
+## Frontend Setup (Next.js)
+
+1. Go to frontend folder:
+
+```bash
+cd frontend
+```
+
+2. Install dependencies and run:
+
+```bash
+npm install
+npm run dev
+```
+
+3. Optional env for frontend:
+
+```bash
+# frontend/.env.local
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
+```
+
+## Required Commands (as requested)
+
+```bash
+pip install -r requirements.txt
+uvicorn main:app --reload
+npm install
+npm run dev
+```
+
+## Demo Data
+
+Pre-loaded hackathon portfolio is in:
+
+- `backend/demo_data.py`
+
+Use the frontend button `Load Demo & Analyze` to execute end-to-end flow:
+
+1. Fetch demo portfolio from backend
+2. Compute deterministic metrics (XIRR, ROI, fees, allocation)
+3. Call Claude API on backend for recommendations
+4. Render results in UI

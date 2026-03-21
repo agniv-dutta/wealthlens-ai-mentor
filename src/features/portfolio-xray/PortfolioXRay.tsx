@@ -17,6 +17,7 @@ import {
   TrendingUp, 
   ShieldAlert, 
   Activity, 
+  Wallet,
   History, 
   ExternalLink,
   ChevronRight,
@@ -33,20 +34,33 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { toast } from 'react-hot-toast';
-import { blink } from '@/blink/client';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 const COLORS = ['#00B894', '#00CEC9', '#0F1B2D', '#2D3436', '#636E72', '#B2BEC3'];
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 
-const DEMO_PORTFOLIO = [
-  {"scheme": "Mirae Asset Large Cap Fund - Regular Growth", "current_value": 285000, "invested": 200000, "units": 4823, "nav": 59.1, "expense_ratio": 1.55, "category": "Large Cap"},
-  {"scheme": "Axis Bluechip Fund - Regular Growth", "current_value": 142000, "invested": 120000, "units": 3241, "nav": 43.8, "expense_ratio": 1.68, "category": "Large Cap"},
-  {"scheme": "Parag Parikh Flexi Cap Fund - Regular Growth", "current_value": 310000, "invested": 240000, "units": 6102, "nav": 50.8, "expense_ratio": 0.74, "category": "Flexi Cap"},
-  {"scheme": "HDFC Mid-Cap Opportunities Fund - Growth", "current_value": 198000, "invested": 150000, "units": 5840, "nav": 33.9, "expense_ratio": 1.62, "category": "Mid Cap"},
-  {"scheme": "Nippon India Small Cap Fund - Growth", "current_value": 89000, "invested": 80000, "units": 2210, "nav": 40.3, "expense_ratio": 1.55, "category": "Small Cap"},
-  {"scheme": "SBI Nifty Index Fund - Regular Growth", "current_value": 176000, "invested": 150000, "units": 9800, "nav": 17.96, "expense_ratio": 0.50, "category": "Index"}
-];
+interface Holding {
+  scheme: string;
+  current_value: number;
+  invested: number;
+  units: number;
+  nav: number;
+  expense_ratio: number;
+  category: string;
+  purchase_date: string;
+}
+
+interface PortfolioMetrics {
+  total_current_value: number;
+  total_invested_value: number;
+  absolute_gain: number;
+  roi_pct: number;
+  annual_fees: number;
+  xirr_pct: number;
+  asset_allocation: { name: string; value: number; weight_pct: number }[];
+  overlap_categories: string[];
+}
 
 interface AnalysisData {
   rebalancing_plan: { action: 'buy' | 'sell' | 'switch', scheme: string, reason: string, amount_inr: number }[];
@@ -56,75 +70,67 @@ interface AnalysisData {
   one_line_summary: string;
 }
 
+interface AnalyzeResponse {
+  portfolio: Holding[];
+  metrics: PortfolioMetrics;
+  analysis: AnalysisData;
+}
+
 export default function PortfolioXRay() {
-  const [portfolio, setPortfolio] = useState<any[]>([]);
+  const [portfolio, setPortfolio] = useState<Holding[]>([]);
+  const [metrics, setMetrics] = useState<PortfolioMetrics | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const loadDemoData = () => {
+  const loadDemoData = async () => {
     setLoading(true);
-    setTimeout(async () => {
-      setPortfolio(DEMO_PORTFOLIO);
-      await analyzePortfolio(DEMO_PORTFOLIO);
-      setLoading(false);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/demo-portfolio`);
+      if (!response.ok) {
+        throw new Error(`Failed to load demo data: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setPortfolio(data.portfolio || []);
+      await analyzePortfolio(data.portfolio || []);
       toast.success('Demo portfolio loaded!');
-    }, 1500);
+    } catch (error) {
+      console.error('Error loading demo portfolio:', error);
+      toast.error('Failed to load demo portfolio');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const analyzePortfolio = async (data: any[]) => {
+  const analyzePortfolio = async (data: Holding[]) => {
     try {
-      const prompt = `You are a SEBI-registered mutual fund advisor (for educational purposes only). 
-      Analyze this Indian investor's mutual fund portfolio and provide actionable recommendations. 
-      Portfolio: ${JSON.stringify(data)}
-      
-      Return ONLY a JSON object with:
-      - rebalancing_plan: array of {action: 'buy'|'sell'|'switch', scheme: string, reason: string, amount_inr: number}
-      - key_insights: array of 3–5 insight strings
-      - risk_assessment: 'conservative'|'moderate'|'aggressive'
-      - health_grade: 'A'|'B'|'C'|'D'
-      - one_line_summary: string
-      No markdown, pure JSON.`;
-
-      const response = await blink.ai.generateObject({
-        prompt,
-        schema: {
-          type: 'object',
-          properties: {
-            rebalancing_plan: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  action: { type: 'string', enum: ['buy', 'sell', 'switch'] },
-                  scheme: { type: 'string' },
-                  reason: { type: 'string' },
-                  amount_inr: { type: 'number' }
-                },
-                required: ['action', 'scheme', 'reason', 'amount_inr']
-              }
-            },
-            key_insights: { type: 'array', items: { type: 'string' } },
-            risk_assessment: { type: 'string', enum: ['conservative', 'moderate', 'aggressive'] },
-            health_grade: { type: 'string', enum: ['A', 'B', 'C', 'D'] },
-            one_line_summary: { type: 'string' }
-          },
-          required: ['rebalancing_plan', 'key_insights', 'risk_assessment', 'health_grade', 'one_line_summary']
+      const response = await fetch(`${API_BASE_URL}/api/portfolio/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
         },
-        model: 'google/gemini-3-flash'
+        body: JSON.stringify({ portfolio: data })
       });
 
-      setAnalysis(response.object as any);
+      if (!response.ok) {
+        throw new Error(`Analysis failed: ${response.status}`);
+      }
+
+      const result = await response.json() as AnalyzeResponse;
+
+      setMetrics(result.metrics);
+      setAnalysis(result.analysis);
     } catch (error) {
       console.error('Error analyzing portfolio:', error);
       toast.error('Failed to analyze portfolio');
     }
   };
 
-  const totalCurrentValue = portfolio.reduce((sum, item) => sum + item.current_value, 0);
-  const totalInvestedValue = portfolio.reduce((sum, item) => sum + item.invested, 0);
-  const absoluteGain = totalCurrentValue - totalInvestedValue;
-  const annualFees = portfolio.reduce((sum, item) => sum + (item.current_value * item.expense_ratio / 100), 0);
-  const xirrValue = 16.4; // Hardcoded for demo purposes
+  const totalCurrentValue = metrics?.total_current_value ?? portfolio.reduce((sum, item) => sum + item.current_value, 0);
+  const totalInvestedValue = metrics?.total_invested_value ?? portfolio.reduce((sum, item) => sum + item.invested, 0);
+  const absoluteGain = metrics?.absolute_gain ?? (totalCurrentValue - totalInvestedValue);
+  const annualFees = metrics?.annual_fees ?? portfolio.reduce((sum, item) => sum + (item.current_value * item.expense_ratio / 100), 0);
+  const xirrValue = metrics?.xirr_pct ?? 0;
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -134,7 +140,7 @@ export default function PortfolioXRay() {
     }).format(val);
   };
 
-  const assetAllocationData = portfolio.reduce((acc: any[], item) => {
+  const localAllocationData = portfolio.reduce((acc: any[], item) => {
     const existing = acc.find(a => a.name === item.category);
     if (existing) {
       existing.value += item.current_value;
@@ -144,13 +150,16 @@ export default function PortfolioXRay() {
     return acc;
   }, []);
 
-  const overlapIssues = portfolio.reduce((acc: string[], item) => {
+  const localOverlapIssues = portfolio.reduce((acc: string[], item) => {
     const count = portfolio.filter(p => p.category === item.category).length;
     if (count > 2 && !acc.includes(item.category)) {
       acc.push(item.category);
     }
     return acc;
   }, []);
+
+  const assetAllocationData = metrics?.asset_allocation ?? localAllocationData;
+  const overlapIssues = metrics?.overlap_categories ?? localOverlapIssues;
 
   const exportPDF = async () => {
     const element = document.getElementById('portfolio-report');
@@ -232,7 +241,7 @@ export default function PortfolioXRay() {
             <Download className="mr-2 h-4 w-4" />
             Export PDF
           </Button>
-          <Button variant="outline" size="sm" onClick={() => { setPortfolio([]); setAnalysis(null); }}>
+          <Button variant="outline" size="sm" onClick={() => { setPortfolio([]); setMetrics(null); setAnalysis(null); }}>
             Reset
           </Button>
         </div>

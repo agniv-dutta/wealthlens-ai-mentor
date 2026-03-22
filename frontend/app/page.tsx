@@ -100,7 +100,7 @@ export default function Page() {
         <div className="header">
           <div>
             <h1 className="title">WealthLens Portfolio X-Ray</h1>
-            <p className="subtitle">Next.js frontend + FastAPI backend + Claude analysis</p>
+            <p className="subtitle">Next.js frontend + FastAPI backend + Groq analysis</p>
           </div>
           <div className="actions">
             <button className="button" onClick={loadDemo} disabled={loading}>
@@ -178,7 +178,7 @@ export default function Page() {
 
           <section className="card">
             <h3>AI Summary</h3>
-            <p className="subtitle">Claude recommendation output</p>
+            <p className="subtitle">Groq recommendation output</p>
             {analysis ? (
               <>
                 <p>
@@ -202,7 +202,7 @@ export default function Page() {
                 </ul>
               </>
             ) : (
-              <p className="subtitle">Run demo to fetch Claude-backed recommendations.</p>
+              <p className="subtitle">Run demo to fetch Groq-backed recommendations.</p>
             )}
           </section>
         </div>

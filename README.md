@@ -3,7 +3,7 @@
 This repo now contains:
 
 - `frontend/` - Next.js app
-- `backend/` - FastAPI app with Claude-backed portfolio analysis
+- `backend/` - FastAPI app with Groq-backed portfolio analysis
 - Existing Vite app at root (`src/`) kept for backward compatibility during migration
 
 ## Backend Setup (FastAPI)
@@ -33,7 +33,7 @@ pip install -r requirements.txt
 
 ```bash
 # backend/.env
-ANTHROPIC_API_KEY=your_key_here
+GROQ_API_KEY=your_key_here
 ```
 
 5. Start API server:
@@ -83,5 +83,5 @@ Use the frontend button `Load Demo & Analyze` to execute end-to-end flow:
 
 1. Fetch demo portfolio from backend
 2. Compute deterministic metrics (XIRR, ROI, fees, allocation)
-3. Call Claude API on backend for recommendations
+3. Call Groq LLM API on backend for recommendations
 4. Render results in UI

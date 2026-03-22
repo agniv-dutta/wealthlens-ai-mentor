@@ -1,20 +1,22 @@
 from __future__ import annotations
 
 import json
-import math
 import os
 from datetime import date, datetime
 from typing import Literal
 
-from anthropic import Anthropic
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from groq import Groq
 from pydantic import BaseModel, Field
 
 from demo_data import get_demo_portfolio
 
-load_dotenv()
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(BASE_DIR, ".env"), override=True)
+if not os.getenv("GROQ_API_KEY"):
+    load_dotenv(os.path.join(BASE_DIR, ".env.example"), override=True)
 
 
 def _parse_iso_date(value: str) -> date:
@@ -148,20 +150,20 @@ def _extract_json(raw_text: str) -> dict:
     start = raw_text.find("{")
     end = raw_text.rfind("}")
     if start == -1 or end == -1 or end <= start:
-        raise ValueError("Claude response did not contain a JSON object")
+        raise ValueError("Model response did not contain a JSON object")
     candidate = raw_text[start : end + 1]
     return json.loads(candidate)
 
 
 def _generate_ai_analysis(portfolio: list[Holding], metrics: dict) -> AnalysisPayload:
-    api_key = os.getenv("ANTHROPIC_API_KEY")
+    api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         raise HTTPException(
             status_code=500,
-            detail="ANTHROPIC_API_KEY is not configured on backend",
+            detail="GROQ_API_KEY is not configured on backend",
         )
 
-    client = Anthropic(api_key=api_key)
+    client = Groq(api_key=api_key)
 
     system_prompt = (
         "You are an Indian mutual fund advisor assistant. "
@@ -177,24 +179,23 @@ def _generate_ai_analysis(portfolio: list[Holding], metrics: dict) -> AnalysisPa
         f"Metrics: {json.dumps(metrics, ensure_ascii=True)}"
     )
 
-    response = client.messages.create(
-        model="claude-3-5-sonnet-20241022",
-        max_tokens=1200,
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        max_completion_tokens=1200,
         temperature=0.2,
-        system=system_prompt,
-        messages=[{"role": "user", "content": user_prompt}],
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
     )
 
-    text_blocks = [
-        block.text for block in response.content if getattr(block, "type", None) == "text"
-    ]
-    raw_text = "\n".join(text_blocks).strip()
+    raw_text = (response.choices[0].message.content or "").strip()
 
     try:
         parsed = _extract_json(raw_text)
         return AnalysisPayload.model_validate(parsed)
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=502, detail=f"Invalid Claude response: {exc}") from exc
+        raise HTTPException(status_code=502, detail=f"Invalid Groq response: {exc}") from exc
 
 
 @app.get("/health")

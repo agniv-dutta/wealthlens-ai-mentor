@@ -155,12 +155,77 @@ def _extract_json(raw_text: str) -> dict:
     return json.loads(candidate)
 
 
+def _normalize_analysis_payload(parsed: dict) -> dict:
+    normalized = dict(parsed)
+
+    plan = normalized.get("rebalancing_plan")
+    if isinstance(plan, str):
+        normalized["rebalancing_plan"] = []
+    elif isinstance(plan, list):
+        # Filter to only valid RebalancingAction objects (dicts with required fields)
+        # If items are strings, skip them (can't parse without structure)
+        valid_actions = []
+        for item in plan:
+            if isinstance(item, dict) and "action" in item and "scheme" in item:
+                valid_actions.append(item)
+            # Skip strings or incomplete dicts
+        normalized["rebalancing_plan"] = valid_actions
+    else:
+        normalized["rebalancing_plan"] = []
+
+    insights = normalized.get("key_insights")
+    if isinstance(insights, str):
+        items = [line.strip(" -\t") for line in insights.split("\n") if line.strip()]
+        normalized["key_insights"] = items[:5]
+    elif isinstance(insights, list):
+        # Handle case where insights are objects with "insight" or "text" field
+        extracted = []
+        for item in insights:
+            if isinstance(item, dict):
+                # Try to extract text from common field names
+                text = item.get("insight") or item.get("text") or item.get("content") or str(item)
+                if isinstance(text, str):
+                    extracted.append(text.strip())
+            elif isinstance(item, str):
+                extracted.append(item.strip())
+        normalized["key_insights"] = extracted[:5] if extracted else []
+    else:
+        normalized["key_insights"] = []
+
+    risk = str(normalized.get("risk_assessment", "")).strip().lower()
+    if risk not in {"conservative", "moderate", "aggressive"}:
+        if "conserv" in risk:
+            risk = "conservative"
+        elif "aggress" in risk:
+            risk = "aggressive"
+        else:
+            risk = "moderate"
+    normalized["risk_assessment"] = risk
+
+    grade = str(normalized.get("health_grade", "")).strip().upper()
+    grade = grade[:1] if grade else "B"
+    if grade not in {"A", "B", "C", "D"}:
+        grade = "B"
+    normalized["health_grade"] = grade
+
+    summary = normalized.get("one_line_summary")
+    if not isinstance(summary, str) or not summary.strip():
+        normalized["one_line_summary"] = "Portfolio reviewed. See insights for action items."
+
+    return normalized
+
+
 def _generate_ai_analysis(portfolio: list[Holding], metrics: dict) -> AnalysisPayload:
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         raise HTTPException(
             status_code=500,
             detail="GROQ_API_KEY is not configured on backend",
+        )
+    if api_key.startswith("PASTE_") or api_key.startswith("your_"):
+        raise HTTPException(
+            status_code=500,
+            detail="GROQ_API_KEY is still a placeholder. Set a real Groq key in backend/.env",
         )
 
     client = Groq(api_key=api_key)
@@ -179,21 +244,26 @@ def _generate_ai_analysis(portfolio: list[Holding], metrics: dict) -> AnalysisPa
         f"Metrics: {json.dumps(metrics, ensure_ascii=True)}"
     )
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        max_completion_tokens=1200,
-        temperature=0.2,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-    )
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            max_completion_tokens=1200,
+            temperature=0.2,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"Groq API call failed: {exc}") from exc
 
     raw_text = (response.choices[0].message.content or "").strip()
 
     try:
         parsed = _extract_json(raw_text)
-        return AnalysisPayload.model_validate(parsed)
+        normalized = _normalize_analysis_payload(parsed)
+        return AnalysisPayload.model_validate(normalized)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"Invalid Groq response: {exc}") from exc
 

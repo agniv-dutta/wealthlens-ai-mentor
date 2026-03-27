@@ -4,7 +4,6 @@
 ![Groq](https://img.shields.io/badge/Groq-llama--3.3--70b--versatile-F55036)
 ![Next.js](https://img.shields.io/badge/Next.js-15.3.2-black?logo=next.js)
 ![React](https://img.shields.io/badge/React-19.1.0-61DAFB?logo=react&logoColor=black)
-![Vite](https://img.shields.io/badge/Vite-7.2.4-646CFF?logo=vite&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
 
@@ -44,9 +43,7 @@ This project solves that by exposing a backend API that computes reliable metric
 
 - Backend: FastAPI service in `backend/`.
 - LLM provider: Groq API using `llama-3.3-70b-versatile`.
-- Frontends:
-	- Next.js UI in `frontend/`.
-	- Vite UI in root `src/` (kept for compatibility and richer design surface).
+- Frontend: Next.js UI in `frontend/`.
 
 Request flow:
 
@@ -63,7 +60,6 @@ Request flow:
 wealthlens-ai-mentor/
 	backend/                # FastAPI + Groq logic
 	frontend/               # Next.js app
-	src/                    # Vite app (legacy/compat mode)
 	README.md
 ```
 
@@ -112,21 +108,6 @@ Run:
 npm run dev -- --hostname 127.0.0.1 --port 3000
 ```
 
-### 3) Optional Vite Frontend
-
-From project root, create `.env.local`:
-
-```env
-VITE_API_BASE_URL=http://127.0.0.1:8001
-```
-
-Run:
-
-```bash
-npm install
-npm run dev
-```
-
 ## Environment Variables
 
 ### Backend
@@ -146,12 +127,6 @@ Notes:
 
 ```env
 NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8001
-```
-
-### Frontend (Vite)
-
-```env
-VITE_API_BASE_URL=http://127.0.0.1:8001
 ```
 
 ## API Documentation

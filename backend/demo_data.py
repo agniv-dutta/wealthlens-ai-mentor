@@ -67,3 +67,39 @@ def get_demo_portfolio() -> list[dict[str, Any]]:
             "purchase_date": "2020-02-27",
         },
     ]
+
+
+def get_demo_secondary_portfolio() -> list[dict[str, Any]]:
+    """Return a spouse's demo portfolio for the Couple's Planner."""
+    return [
+        {
+            "scheme": "Canara Robeco Bluechip Equity Fund - Growth",
+            "current_value": 150000,
+            "invested": 100000,
+            "units": 3450,
+            "nav": 43.47,
+            "expense_ratio": 1.62,
+            "category": "Large Cap",
+            "purchase_date": "2021-01-10",
+        },
+        {
+            "scheme": "Quant Active Fund - Growth",
+            "current_value": 220000,
+            "invested": 120000,
+            "units": 4120,
+            "nav": 53.4,
+            "expense_ratio": 0.75,
+            "category": "Multi Cap",
+            "purchase_date": "2020-05-15",
+        },
+        {
+            "scheme": "ICICI Prudential Technology Fund - Growth",
+            "current_value": 95000,
+            "invested": 85000,
+            "units": 1240,
+            "nav": 76.6,
+            "expense_ratio": 1.85,
+            "category": "Sectoral/Thematic",
+            "purchase_date": "2022-03-22",
+        },
+    ]

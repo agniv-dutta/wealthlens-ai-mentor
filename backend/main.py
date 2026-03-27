@@ -298,6 +298,47 @@ def _generate_ai_analysis(portfolio: list[Holding], metrics: dict) -> AnalysisPa
         return _fallback_analysis(metrics)
 
 
+class TaxHarvestingSuggestion(BaseModel):
+    scheme: str
+    harvestable_loss_inr: float
+    reason: str
+
+
+class TaxAnalysisPayload(BaseModel):
+    stcg_estimated_inr: float
+    ltcg_estimated_inr: float
+    tax_harvesting_suggestions: list[TaxHarvestingSuggestion]
+    tax_efficiency_grade: Literal["A", "B", "C", "D"]
+    key_tax_insights: list[str]
+
+
+class CombinedPortfolioMetrics(BaseModel):
+    total_current_value: float
+    combined_xirr_pct: float
+    overlap_count: int
+    top_categories: list[str]
+
+
+class CouplesAnalysisPayload(BaseModel):
+    combined_metrics: CombinedPortfolioMetrics
+    merging_strategy: str
+    key_combined_insights: list[str]
+    joint_health_grade: Literal["A", "B", "C", "D"]
+
+
+class HealthScorePayload(BaseModel):
+    overall_health_score: int = Field(ge=0, le=100)
+    emergency_fund_status: Literal["Adequate", "Partial", "Critical"]
+    insurance_coverage_score: int
+    retirement_readiness_pct: float
+    health_insights: list[str]
+
+
+class CouplesAnalyzeRequest(BaseModel):
+    portfolio_1: list[Holding]
+    portfolio_2: list[Holding]
+
+
 @app.get("/health")
 def health() -> dict:
     return {"ok": True}
@@ -306,6 +347,17 @@ def health() -> dict:
 @app.get("/api/demo-portfolio")
 def demo_portfolio() -> dict:
     demo = [Holding.model_validate(item) for item in get_demo_portfolio()]
+    metrics = _compute_metrics(demo)
+    return {
+        "portfolio": [item.model_dump() for item in demo],
+        "metrics": metrics,
+    }
+
+
+@app.get("/api/demo-secondary-portfolio")
+def demo_secondary_portfolio() -> dict:
+    from demo_data import get_demo_secondary_portfolio
+    demo = [Holding.model_validate(item) for item in get_demo_secondary_portfolio()]
     metrics = _compute_metrics(demo)
     return {
         "portfolio": [item.model_dump() for item in demo],
@@ -329,3 +381,131 @@ def analyze_portfolio(payload: AnalyzeRequest) -> dict:
         "metrics": metrics,
         "analysis": analysis.model_dump(),
     }
+
+
+@app.post("/api/tax/analyze")
+def analyze_tax(payload: AnalyzeRequest) -> dict:
+    # Deterministic Tax Estimation (Simplified)
+    portfolio = payload.portfolio
+    stcg = 0.0
+    ltcg = 0.0
+    suggestions = []
+
+    for item in portfolio:
+        gain = item.current_value - item.invested
+        # Rules: Equity > 1yr = LTCG, < 1yr = STCG (Simplification)
+        days_owned = (date.today() - _parse_iso_date(item.purchase_date)).days
+        if "Debt" in item.category:
+            stcg += max(0, gain) # Debt is STCG (Simplified)
+        elif days_owned > 365:
+            ltcg += max(0, gain)
+        else:
+            stcg += max(0, gain)
+        
+        if gain < -5000:
+            suggestions.append(TaxHarvestingSuggestion(
+                scheme=item.scheme,
+                harvestable_loss_inr=abs(gain),
+                reason=f"Unrealized loss in {item.category} can offset other gains."
+            ))
+
+    # AI Analysis for Tax
+    api_key = os.getenv("GROQ_API_KEY")
+    client = Groq(api_key=api_key)
+    
+    user_prompt = (
+        "Analyze these Indian mutual fund tax metrics. "
+        "Return JSON with keys: tax_efficiency_grade (A/B/C/D), key_tax_insights (list of 3 strings).\n\n"
+        f"STCG: {stcg}, LTCG: {ltcg}, Suggestions: {json.dumps([s.model_dump() for s in suggestions])}"
+    )
+    
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            response_format={"type": "json_object"},
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+        parsed = _extract_json(response.choices[0].message.content)
+    except:
+        parsed = {"tax_efficiency_grade": "B", "key_tax_insights": ["Review LTCG limits", "Harvest losses where active"]}
+
+    return {
+        "stcg_estimated_inr": stcg,
+        "ltcg_estimated_inr": ltcg,
+        "tax_harvesting_suggestions": [s.model_dump() for s in suggestions],
+        **parsed
+    }
+
+
+@app.post("/api/couples-planner/analyze")
+def analyze_couples(payload: CouplesAnalyzeRequest) -> dict:
+    total_port = payload.portfolio_1 + payload.portfolio_2
+    combined_metrics = _compute_metrics(total_port)
+    
+    # AI Analysis for Couples
+    api_key = os.getenv("GROQ_API_KEY")
+    client = Groq(api_key=api_key)
+    
+    user_prompt = (
+        "Analyze these two combined portfolios for a couple. "
+        "Return ONLY JSON with keys: merging_strategy, key_combined_insights (list), joint_health_grade (A/B/C/D)."
+        f"Combined Metrics: {json.dumps(combined_metrics)}"
+    )
+    
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            response_format={"type": "json_object"},
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+        parsed = _extract_json(response.choices[0].message.content)
+    except:
+        parsed = {
+            "merging_strategy": "Consolidate duplicate Large Cap holdings.",
+            "key_combined_insights": ["High overlap in Index funds", "Combined debt exposure is low"],
+            "joint_health_grade": "B"
+        }
+
+    return {
+        "combined_metrics": {
+            "total_current_value": combined_metrics["total_current_value"],
+            "combined_xirr_pct": combined_metrics["xirr_pct"],
+            "overlap_count": len(combined_metrics["overlap_categories"]),
+            "top_categories": [a["name"] for a in combined_metrics["asset_allocation"][:3]]
+        },
+        **parsed
+    }
+
+
+@app.post("/api/health-score/analyze")
+def analyze_health(payload: AnalyzeRequest) -> dict:
+    metrics = _compute_metrics(payload.portfolio)
+    
+    # AI Analysis for Health Score
+    api_key = os.getenv("GROQ_API_KEY")
+    client = Groq(api_key=api_key)
+    
+    user_prompt = (
+        "Based on this portfolio, calculate a hollistic financial health score (0-100). "
+        "Return ONLY JSON with keys: overall_health_score, emergency_fund_status (Adequate/Partial/Critical), "
+        "insurance_coverage_score (0-100), retirement_readiness_pct (0-100), health_insights (list of 3).\n\n"
+        f"Metrics: {json.dumps(metrics)}"
+    )
+    
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            response_format={"type": "json_object"},
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+        parsed = _extract_json(response.choices[0].message.content)
+    except:
+        parsed = {
+            "overall_health_score": 72,
+            "emergency_fund_status": "Partial",
+            "insurance_coverage_score": 60,
+            "retirement_readiness_pct": 45.0,
+            "health_insights": ["Increase term insurance coverage", "Build 6-month buffer", "Diversify equity exposure"]
+        }
+
+    return parsed

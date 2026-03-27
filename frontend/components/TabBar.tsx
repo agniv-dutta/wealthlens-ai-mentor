@@ -11,7 +11,7 @@ const tabs = [
 
 interface TabBarProps {
   activeTab: string;
-  onTabChange: (tab: string) => void;
+  onTabChange: (tab: any) => void;
 }
 
 const TabBar = ({ activeTab, onTabChange }: TabBarProps) => {

@@ -215,6 +215,35 @@ def _normalize_analysis_payload(parsed: dict) -> dict:
     return normalized
 
 
+def _fallback_analysis(metrics: dict) -> AnalysisPayload:
+    roi_pct = float(metrics.get("roi_pct", 0.0))
+    xirr_pct = float(metrics.get("xirr_pct", 0.0))
+    annual_fees = float(metrics.get("annual_fees", 0.0))
+    total_current_value = float(metrics.get("total_current_value", 0.0))
+    allocation = metrics.get("asset_allocation", [])
+
+    top_bucket = "current allocation"
+    if isinstance(allocation, list) and allocation:
+        top = max(allocation, key=lambda item: float(item.get("weight_pct", 0.0)))
+        top_name = str(top.get("name", "current allocation"))
+        top_weight = float(top.get("weight_pct", 0.0))
+        top_bucket = f"{top_name} ({top_weight:.1f}%)"
+
+    insights = [
+        f"Portfolio ROI is {roi_pct:.2f}% with XIRR at {xirr_pct:.2f}% based on dated cashflows.",
+        f"Highest concentration is in {top_bucket}; consider diversification if this exceeds your risk preference.",
+        f"Estimated annual fees are INR {annual_fees:,.0f} on INR {total_current_value:,.0f} current value.",
+    ]
+
+    return AnalysisPayload(
+        rebalancing_plan=[],
+        key_insights=insights,
+        risk_assessment="moderate",
+        health_grade="B",
+        one_line_summary="Automated fallback analysis generated because AI response format was invalid.",
+    )
+
+
 def _generate_ai_analysis(portfolio: list[Holding], metrics: dict) -> AnalysisPayload:
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
@@ -264,8 +293,9 @@ def _generate_ai_analysis(portfolio: list[Holding], metrics: dict) -> AnalysisPa
         parsed = _extract_json(raw_text)
         normalized = _normalize_analysis_payload(parsed)
         return AnalysisPayload.model_validate(normalized)
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=502, detail=f"Invalid Groq response: {exc}") from exc
+    except Exception:
+        # Keep endpoint stable even when model output shape drifts.
+        return _fallback_analysis(metrics)
 
 
 @app.get("/health")

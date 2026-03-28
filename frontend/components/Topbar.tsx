@@ -13,9 +13,13 @@ const Topbar = ({ onLoadDemo, onReset, loading, grade }: TopbarProps) => {
   return (
     <header className="h-[64px] bg-white border-b border-[#DDD8C0] px-8 flex items-center justify-between sticky top-0 z-50">
       <div className="flex items-center gap-3">
-        <div className="w-6 h-6 rounded-full bg-[#E6DDBE] flex items-center justify-center">
-          <div className="w-1.5 h-1.5 rounded-full bg-[#1B5E20]" />
-        </div>
+        <svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M32 8 C48 8 56 20 56 32 C56 44 44 52 32 52 C32 52 8 44 8 28 C8 16 20 8 32 8Z" fill="#DCEDC8" stroke="#1B5E20" stroke-width="1.5"/>
+          <rect x="18" y="36" width="6" height="10" rx="2" fill="#1B5E20" opacity="0.5"/>
+          <rect x="27" y="28" width="6" height="18" rx="2" fill="#1B5E20" opacity="0.75"/>
+          <rect x="36" y="20" width="6" height="26" rx="2" fill="#1B5E20"/>
+          <path d="M32 52 C32 56 28 58 26 60" stroke="#1B5E20" stroke-width="2" stroke-linecap="round" fill="none"/>
+        </svg>
         <div className="flex items-center">
           <span className="font-display text-[22px] text-[#1C1A12]">Wealth</span>
           <span className="font-sans font-semibold text-[22px] text-[#1B5E20]">Lens</span>

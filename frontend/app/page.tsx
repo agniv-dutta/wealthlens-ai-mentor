@@ -16,7 +16,7 @@ interface Action {
   amount_inr: number;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8001';
 
 // Formatters exactly as specified in design docs
 const formatINR = (n: number) => {
@@ -54,6 +54,11 @@ export default function Page() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const reportDate = new Date().toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 
   const loadDemo = async () => {
     setLoading(true);
@@ -90,7 +95,15 @@ export default function Page() {
       }
 
       const p = await pRes.json();
-      setMetrics(p.metrics);
+      const mergedMetrics = {
+        ...(demo.metrics || {}),
+        ...(p.metrics || {}),
+        fund_xirr_pct:
+          p?.metrics?.fund_xirr_pct ||
+          demo?.metrics?.fund_xirr_pct ||
+          {},
+      };
+      setMetrics(mergedMetrics);
       setAnalysis(p.analysis);
       if (tRes.ok) setTaxAnalysis(await tRes.json());
       if (hRes.ok) setHealthAnalysis(await hRes.json());
@@ -121,6 +134,10 @@ export default function Page() {
     setError('');
   };
 
+  const exportReport = () => {
+    window.print();
+  };
+
   const renderPortfolioXRay = () => (
     <>
       <header className="mb-8">
@@ -133,18 +150,22 @@ export default function Page() {
           )}
         </InsightBar>
       </header>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-10">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-10 print-xray-stats">
         <StatCard label="XIRR" value={metrics ? formatPct(metrics.xirr_pct) : '--'} subtextText="Calculated from dated cashflows" variant="xirr" loading={loading} />
         <StatCard label="Current Value" value={metrics ? formatINRShort(metrics.total_current_value) : '--'} subtextText="Live computed from holdings" variant="current" loading={loading} />
         <StatCard label="Invested" value={metrics ? formatINRShort(metrics.total_invested_value) : '--'} subtextText="Total principal deployed" variant="invested" loading={loading} />
         <StatCard label="Absolute Gain" value={metrics ? (metrics.absolute_gain >= 0 ? '+' : '') + formatINRShort(metrics.absolute_gain) : '--'} subtextText={metrics ? `ROI ${formatPct(metrics.roi_pct)}` : 'Growth vs Benchmark'} variant="gain" loading={loading} />
         <StatCard label="Annual Fees" value={metrics ? formatINR(metrics.annual_fees) : '--'} subtextText="Expense ratio drag" variant="fees" loading={loading} />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-[60fr_40fr] gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[60fr_40fr] gap-6 items-start print-xray-core">
         <AllocationChart data={metrics?.asset_allocation || []} totalValue={metrics?.total_current_value || 0} loading={loading} />
         <AISummary grade={analysis?.health_grade || 'B'} riskLevel={(analysis?.risk_assessment?.toUpperCase() as any) || 'MODERATE'} keyInsights={analysis?.key_insights || []} rebalancingPlan={analysis?.rebalancing_plan || []} loading={loading} />
       </div>
-      {portfolio.length > 0 && !loading && <HoldingsTable holdings={portfolio} />}
+      {portfolio.length > 0 && !loading && (
+        <div className="print-xray-holdings">
+          <HoldingsTable holdings={portfolio} />
+        </div>
+      )}
     </>
   );
 
@@ -403,6 +424,7 @@ export default function Page() {
       <Topbar
         onLoadDemo={loadDemo}
         onReset={resetPortfolio}
+        onExportReport={exportReport}
         loading={loading}
         grade={analysis?.health_grade}
       />
@@ -412,9 +434,9 @@ export default function Page() {
         <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden print-shell">
         {/* Sidebar - Desktop only */}
-        <aside className="hidden lg:flex w-[240px] bg-[#F7F4E9] border-r border-[#DDD8C0] flex-col font-sans p-6 gap-2 shrink-0">
+        <aside className="hidden lg:flex w-[240px] bg-[#F7F4E9] border-r border-[#DDD8C0] flex-col font-sans p-6 gap-2 shrink-0 print-hide-sidebar">
           <div className="mb-4 text-[10px] font-sans uppercase tracking-[0.1em] text-sand-500 font-semibold opacity-60">General</div>
           <nav className="flex flex-col gap-1.5">
             {TABS.map(tab => (
@@ -434,7 +456,7 @@ export default function Page() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto pt-12 px-10 pb-[100px] md:pb-16 bg-[#FDFAF4]">
+        <main className="flex-1 overflow-y-auto pt-12 px-10 pb-[100px] md:pb-16 bg-[#FDFAF4] print-main-content">
           <div className="max-w-[1100px] mx-auto w-full">
             
             {activeTab === 'Portfolio X-Ray' && renderPortfolioXRay()}
@@ -443,15 +465,47 @@ export default function Page() {
             {activeTab === "Couple's Planner" && renderCouplesPlanner()}
             {activeTab === 'Money Health Score' && renderHealthScore()}
           </div>
+
+          <section className="print-report-sheet" aria-hidden="true" style={{ display: 'none' }}>
+            <header className="print-report-header">
+              <div className="print-report-title">WealthLens Portfolio X-Ray Report</div>
+              <div className="print-report-date">{reportDate}</div>
+            </header>
+
+            <div className="print-report-body">
+              <div className="print-xray-stats">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-10">
+                  <StatCard label="XIRR" value={metrics ? formatPct(metrics.xirr_pct) : '--'} subtextText="Calculated from dated cashflows" variant="xirr" loading={false} />
+                  <StatCard label="Current Value" value={metrics ? formatINRShort(metrics.total_current_value) : '--'} subtextText="Live computed from holdings" variant="current" loading={false} />
+                  <StatCard label="Invested" value={metrics ? formatINRShort(metrics.total_invested_value) : '--'} subtextText="Total principal deployed" variant="invested" loading={false} />
+                  <StatCard label="Absolute Gain" value={metrics ? (metrics.absolute_gain >= 0 ? '+' : '') + formatINRShort(metrics.absolute_gain) : '--'} subtextText={metrics ? `ROI ${formatPct(metrics.roi_pct)}` : 'Growth vs Benchmark'} variant="gain" loading={false} />
+                  <StatCard label="Annual Fees" value={metrics ? formatINR(metrics.annual_fees) : '--'} subtextText="Expense ratio drag" variant="fees" loading={false} />
+                </div>
+              </div>
+
+              <div className="print-xray-core">
+                <div className="grid grid-cols-1 lg:grid-cols-[60fr_40fr] gap-6 items-start">
+                  <AllocationChart data={metrics?.asset_allocation || []} totalValue={metrics?.total_current_value || 0} loading={false} />
+                  <AISummary grade={analysis?.health_grade || 'B'} riskLevel={(analysis?.risk_assessment?.toUpperCase() as any) || 'MODERATE'} keyInsights={analysis?.key_insights || []} rebalancingPlan={analysis?.rebalancing_plan || []} loading={false} />
+                </div>
+              </div>
+
+              <div className="print-xray-holdings">
+                {portfolio.length > 0 ? <HoldingsTable holdings={portfolio} /> : null}
+              </div>
+            </div>
+
+            <footer className="print-report-footer">Confidential — for educational purposes only</footer>
+          </section>
         </main>
       </div>
 
       {/* TabBar at bottom on mobile */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 shadow-[0_-4px_16px_rgba(0,0,0,0.05)]">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 shadow-[0_-4px_16px_rgba(0,0,0,0.05)] print-hide-tabbar">
         <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
 
-      <footer className="bg-sand-300 border-t border-sand-400 py-6 px-10 flex flex-col items-center justify-center font-sans text-center">
+      <footer className="print-hide-app-footer bg-sand-300 border-t border-sand-400 py-6 px-10 flex flex-col items-center justify-center font-sans text-center">
         <div className="flex items-center gap-2 mb-2">
           <svg className="w-4 h-4 text-forest-200" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2L4.5 9.5a7 7 0 000 9.9 7 7 0 009.9 0l8.1-8.1-10.5-1.3L12 2z" />

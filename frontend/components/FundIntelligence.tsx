@@ -52,14 +52,27 @@ const FundIntelligence = ({ portfolio, metrics, analysis }: FundIntelligenceProp
     return name.split(' Fund')[0].split(' - ')[0].replace('Opportunities', 'Opp.').replace('Infrastructure', 'Infra.');
   };
 
+  const getOverlapMatrixLabel = (scheme: string) => {
+    if (scheme.includes('Mirae Asset Large Cap')) return 'Mirae LC';
+    if (scheme.includes('Axis Bluechip')) return 'Axis BC';
+    if (scheme.includes('Parag Parikh Flexi Cap')) return 'Parag FC';
+    if (scheme.includes('HDFC Mid-Cap Opportunities')) return 'HDFC MC';
+    if (scheme.includes('Nippon India Small Cap')) return 'Nippon SC';
+    if (scheme.includes('SBI Nifty Index')) return 'SBI Index';
+    return getShortName(scheme);
+  };
+
   // Section 1: Heatmap Data
+  const fundXirrByScheme = metrics?.fund_xirr_pct || {};
   const heatmapFunds = portfolio.map(f => {
     const returnPct = ((f.current_value - f.invested) / f.invested) * 100;
     const weightPct = (f.current_value / metrics.total_current_value) * 100;
+    const xirrPct = Number(fundXirrByScheme[f.scheme] ?? 0);
     return {
       ...f,
       returnPct,
       weightPct,
+      xirrPct,
       shortName: getShortName(f.scheme)
     };
   });
@@ -151,7 +164,7 @@ const FundIntelligence = ({ portfolio, metrics, analysis }: FundIntelligenceProp
               <div className="grid grid-cols-3 gap-2 border-t border-[#F2EDD8] pt-4">
                 <div className="text-center">
                   <div className="text-[9px] font-sans text-[#7A7250] uppercase tracking-tighter opacity-70">XIRR</div>
-                  <div className="text-[13px] font-mono font-bold text-[#1C1A12]">24.2%</div>
+                  <div className="text-[13px] font-mono font-bold text-[#1C1A12]">{f.xirrPct.toFixed(1)}%</div>
                 </div>
                 <div className="text-center border-x border-[#F2EDD8]">
                   <div className="text-[9px] font-sans text-[#7A7250] uppercase tracking-tighter opacity-70">Exp. Ratio</div>
@@ -177,8 +190,12 @@ const FundIntelligence = ({ portfolio, metrics, analysis }: FundIntelligenceProp
           <div className="grid grid-cols-7 gap-1 mb-8">
             <div className="bg-transparent" />
             {heatmapFunds.map((f, i) => (
-              <div key={i} className="text-[9px] font-sans font-bold uppercase text-[#7A7250] text-center rotate-45 h-12 flex items-center justify-center -mb-2">
-                {f.shortName.substring(0, 10)}
+              <div
+                key={i}
+                className="h-8 flex items-end justify-center text-center whitespace-nowrap"
+                style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-secondary, #7A7250)' }}
+              >
+                {getOverlapMatrixLabel(f.scheme)}
               </div>
             ))}
             {heatmapFunds.map((fRow, i) => (
@@ -293,11 +310,14 @@ const FundIntelligence = ({ portfolio, metrics, analysis }: FundIntelligenceProp
           <div className="w-1.5 h-6 bg-[#1B5E20] rounded-full" />
           <h2 className="font-display text-2xl text-[#1C1A12]">Performance vs Benchmarks</h2>
         </div>
-        <div className="bg-white border border-[#DDD8C0] rounded-2xl p-8 shadow-sm">
+        <div
+          className="border border-[#DDD8C0] rounded-2xl p-8 shadow-sm"
+          style={{ backgroundColor: 'var(--bg-surface, #F2EDD8)' }}
+        >
           <div className="h-[300px] w-full mb-8">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={benchmarkData} margin={{ right: 30, left: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#DDD8C044" />
+              <LineChart data={benchmarkData} margin={{ right: 30, left: 10 }} style={{ backgroundColor: 'transparent' }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#DDD8C044" fill="transparent" />
                 <XAxis dataKey="year" tick={{ fill: '#7A7250', fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: '#7A7250', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}%`} />
                 <Tooltip 

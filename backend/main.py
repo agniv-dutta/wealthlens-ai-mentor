@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 from datetime import date, datetime
 from typing import Literal
@@ -35,6 +36,7 @@ class Holding(BaseModel):
     expense_ratio: float = Field(ge=0)
     category: str
     purchase_date: str
+    sip_cashflows: list[dict[str, float | str]] | None = None
 
 
 class RebalancingAction(BaseModel):
@@ -100,6 +102,43 @@ def _xirr(cashflows: list[tuple[date, float]]) -> float:
     return (low + high) / 2
 
 
+def _holding_outflow_cashflows(holding: Holding) -> list[tuple[date, float]]:
+    if holding.sip_cashflows:
+        outflows: list[tuple[date, float]] = []
+        for flow in holding.sip_cashflows:
+            flow_date_raw = flow.get("date")
+            flow_amount_raw = flow.get("amount")
+            if not isinstance(flow_date_raw, str):
+                continue
+            try:
+                flow_amount = float(flow_amount_raw) if flow_amount_raw is not None else 0.0
+            except (TypeError, ValueError):
+                continue
+            if flow_amount <= 0:
+                continue
+            outflows.append((_parse_iso_date(flow_date_raw), -flow_amount))
+        if outflows:
+            return outflows
+
+    return [(_parse_iso_date(holding.purchase_date), -holding.invested)]
+
+
+def _safe_xirr_pct(cashflows: list[tuple[date, float]]) -> float:
+    if not cashflows:
+        return 0.0
+    has_negative = any(amount < 0 for _, amount in cashflows)
+    has_positive = any(amount > 0 for _, amount in cashflows)
+    if not (has_negative and has_positive):
+        return 0.0
+    try:
+        xirr_rate = _xirr(cashflows)
+    except Exception:
+        return 0.0
+    if not math.isfinite(xirr_rate):
+        return 0.0
+    return xirr_rate * 100
+
+
 def _compute_metrics(portfolio: list[Holding]) -> dict:
     if not portfolio:
         raise ValueError("Portfolio cannot be empty")
@@ -118,14 +157,21 @@ def _compute_metrics(portfolio: list[Holding]) -> dict:
 
     overlap_categories = sorted([name for name, count in category_counts.items() if count > 2])
 
+    valuation_date = date.today()
+
     cashflows: list[tuple[date, float]] = []
+    fund_xirr_pct: dict[str, float] = {}
     for item in portfolio:
-        cashflows.append((_parse_iso_date(item.purchase_date), -item.invested))
-    cashflows.append((date.today(), total_current_value))
+        holding_outflows = _holding_outflow_cashflows(item)
+        cashflows.extend(holding_outflows)
+        holding_cashflows = [*holding_outflows, (valuation_date, item.current_value)]
+        holding_cashflows.sort(key=lambda entry: entry[0])
+        fund_xirr_pct[item.scheme] = _safe_xirr_pct(holding_cashflows)
+
+    cashflows.append((valuation_date, total_current_value))
     cashflows.sort(key=lambda entry: entry[0])
 
-    xirr_rate = _xirr(cashflows)
-    xirr_pct = xirr_rate * 100
+    xirr_pct = _safe_xirr_pct(cashflows)
 
     asset_allocation = [
         {
@@ -143,6 +189,7 @@ def _compute_metrics(portfolio: list[Holding]) -> dict:
         "roi_pct": roi_pct,
         "annual_fees": annual_fees,
         "xirr_pct": xirr_pct,
+        "fund_xirr_pct": fund_xirr_pct,
         "asset_allocation": asset_allocation,
         "overlap_categories": overlap_categories,
     }

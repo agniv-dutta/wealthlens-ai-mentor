@@ -125,13 +125,13 @@ export default function Page() {
     <>
       <header className="mb-8">
         <h1 className="font-display text-[42px] text-[#1C1A12] mb-3 leading-tight tracking-tight">WealthLens Portfolio X-Ray</h1>
-        {metrics ? (
-          <InsightBar>
-            Your <span className="font-bold">{formatINRShort(metrics.total_invested_value)}</span> has grown to <span className="font-bold">{formatINRShort(metrics.total_current_value)}</span> — but you're paying <span className="font-bold text-[#B71C1C]">{formatINR(metrics.annual_fees)}/year</span> in fees that could be cut in half.
-          </InsightBar>
-        ) : (
-          <p className="text-[#7A7250] font-sans text-sm opacity-80">Next.js frontend + FastAPI backend + Groq analysis</p>
-        )}
+        <InsightBar>
+          {metrics ? (
+            <>Your <span className="font-bold">{formatINRShort(metrics.total_invested_value)}</span> has grown to <span className="font-bold">{formatINRShort(metrics.total_current_value)}</span> — but you're paying <span className="font-bold text-[#B71C1C]">{formatINR(metrics.annual_fees)}/year</span> in fees that could be cut in half.</>
+          ) : (
+            <>Your <span className="font-bold">₹9.4L</span> has grown to <span className="font-bold">₹12.0L</span> — but you're paying <span className="font-bold text-[#B71C1C]">₹14,564/year</span> in fees that could be cut in half.</>
+          )}
+        </InsightBar>
       </header>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-10">
         <StatCard label="XIRR" value={metrics ? formatPct(metrics.xirr_pct) : '--'} subtextText="Calculated from dated cashflows" variant="xirr" loading={loading} />
@@ -156,13 +156,9 @@ export default function Page() {
     <>
       <header className="mb-8">
         <h1 className="font-display text-[42px] text-[#1C1A12] mb-3 leading-tight tracking-tight">Tax Wizard</h1>
-        {taxAnalysis ? (
-          <InsightBar>
-            You're potentially missing <span className="font-bold text-[#1B5E20]">{formatINR(67500)}</span> in tax savings this financial year.
-          </InsightBar>
-        ) : (
-          <p className="text-[#7A7250] font-sans text-sm opacity-80">Capital gains harvesting + optimization</p>
-        )}
+        <InsightBar>
+          You're potentially missing <span className="font-bold text-[#1B5E20]">{formatINR(67500)}</span> in tax savings this financial year.
+        </InsightBar>
       </header>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
         <StatCard label="LTCG Estimated" value={taxAnalysis ? formatINR(taxAnalysis.ltcg_estimated_inr) : '--'} subtextText="Equity > 1 year" variant="current" loading={loading} />
@@ -318,13 +314,13 @@ export default function Page() {
     <>
       <header className="mb-8">
         <h1 className="font-display text-[42px] text-[#1C1A12] mb-3 leading-tight tracking-tight">Couple's Planner</h1>
-        {couplesAnalysis ? (
-          <InsightBar>
-            Together, your <span className="font-bold">{formatINRShort(couplesAnalysis.combined_metrics.total_current_value)}</span> portfolio earns <span className="font-bold text-[#1B5E20]">{formatPct(couplesAnalysis.combined_metrics.combined_xirr_pct)} XIRR</span> — here's how to optimize it jointly.
-          </InsightBar>
-        ) : (
-          <p className="text-[#7A7250] font-sans text-sm opacity-80">Joint portfolio analysis + goal merging</p>
-        )}
+        <InsightBar>
+          {couplesAnalysis ? (
+            <>Together, your <span className="font-bold">{formatINRShort(couplesAnalysis.combined_metrics.total_current_value)}</span> portfolio earns <span className="font-bold text-[#1B5E20]">{formatPct(couplesAnalysis.combined_metrics.combined_xirr_pct)} XIRR</span> — here's how to optimize it jointly.</>
+          ) : (
+            <>Together, your <span className="font-bold">₹16.6L</span> portfolio earns <span className="font-bold text-[#1B5E20]">5.99% XIRR</span> — here's how to optimize it jointly.</>
+          )}
+        </InsightBar>
       </header>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10">
         <StatCard label="Combined Value" value={couplesAnalysis ? formatINRShort(couplesAnalysis.combined_metrics.total_current_value) : '--'} variant="current" loading={loading} />
@@ -356,13 +352,13 @@ export default function Page() {
     <>
       <header className="mb-8">
         <h1 className="font-display text-[42px] text-[#1C1A12] mb-3 leading-tight tracking-tight">Money Health Score</h1>
-        {healthAnalysis ? (
-          <InsightBar>
-            Your financial health scores <span className="font-bold">{healthAnalysis.overall_health_score}/100</span> — strong investments, but insurance gap needs attention.
-          </InsightBar>
-        ) : (
-          <p className="text-[#7A7250] font-sans text-sm opacity-80">Holistic financial wellness assessment</p>
-        )}
+        <InsightBar>
+          {healthAnalysis ? (
+            <>Your financial health scores <span className="font-bold">{healthAnalysis.overall_health_score}/100</span> — strong investments, but insurance gap needs attention.</>
+          ) : (
+            <>Your financial health scores <span className="font-bold">82/100</span> — strong investments, but insurance gap needs attention.</>
+          )}
+        </InsightBar>
       </header>
       <div className="flex flex-col lg:flex-row gap-8 items-start mb-10">
         <div className="bg-white border border-[#DDD8C0] rounded-3xl p-10 flex flex-col items-center justify-center min-w-[300px] shadow-sm">

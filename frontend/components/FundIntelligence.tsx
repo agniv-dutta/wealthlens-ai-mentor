@@ -103,7 +103,15 @@ const FundIntelligence = ({ portfolio, metrics, analysis }: FundIntelligenceProp
       <header className="mb-8">
         <h1 className="font-display text-[42px] text-[#1C1A12] mb-3 leading-tight tracking-tight">Fund Intelligence</h1>
         <div className="bg-[#E6DDBE] border-l-[3px] border-[#1B5E20] px-4 py-3 rounded-lg text-[14px] font-sans text-[#4A4830] mb-8 animate-in fade-in slide-in-from-left-2 duration-500">
-          <span className="font-bold">{portfolio.length} funds</span> analyzed · <span className="font-bold text-[#E65100]">2 overlap risks</span> detected · <span className="font-bold text-[#B71C1C]">{formatINR(metrics.annual_fees)}</span> in avoidable fees identified
+          {portfolio && portfolio.length > 0 && metrics ? (
+            <>
+              <span className="font-bold">{portfolio.length} funds</span> analyzed · <span className="font-bold text-[#E65100]">2 overlap risks</span> detected · <span className="font-bold text-[#B71C1C]">{formatINR(metrics.annual_fees)}</span> in avoidable fees identified
+            </>
+          ) : (
+            <>
+              <span className="font-bold">6 funds</span> analyzed · <span className="font-bold text-[#E65100]">2 overlap risks</span> detected · <span className="font-bold text-[#B71C1C]">{formatINR(14564)}</span> in avoidable fees identified
+            </>
+          )}
         </div>
       </header>
 

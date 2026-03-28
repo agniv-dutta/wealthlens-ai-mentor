@@ -7,6 +7,7 @@ import StatCard from '../components/StatCard';
 import AllocationChart from '../components/AllocationChart';
 import AISummary from '../components/AISummary';
 import HoldingsTable from '../components/HoldingsTable';
+import FundIntelligence from '../components/FundIntelligence';
 
 interface Action {
   action: 'buy' | 'sell' | 'switch';
@@ -15,7 +16,7 @@ interface Action {
   amount_inr: number;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8001';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000';
 
 // Formatters exactly as specified in design docs
 const formatINR = (n: number) => {
@@ -32,8 +33,14 @@ const formatINRShort = (n: number) => {
 
 const formatPct = (n: number) => (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
 
-const TABS = ['Portfolio X-Ray', 'Tax Wizard', "Couple's Planner", 'Money Health Score'] as const;
+const TABS = ['Portfolio X-Ray', 'Fund Intelligence', 'Tax Wizard', "Couple's Planner", 'Money Health Score'] as const;
 type TabType = typeof TABS[number];
+
+const InsightBar = ({ children }: { children: React.ReactNode }) => (
+  <div className="bg-[#E6DDBE] border-l-[3px] border-[#1B5E20] px-4 py-3 rounded-lg text-[14px] font-sans text-[#4A4830] mb-8 animate-in fade-in slide-in-from-left-2 duration-500">
+    {children}
+  </div>
+);
 
 export default function Page() {
   const [activeTab, setActiveTab] = useState<TabType>('Portfolio X-Ray');
@@ -116,9 +123,15 @@ export default function Page() {
 
   const renderPortfolioXRay = () => (
     <>
-      <header className="mb-12">
+      <header className="mb-8">
         <h1 className="font-display text-[42px] text-[#1C1A12] mb-3 leading-tight tracking-tight">WealthLens Portfolio X-Ray</h1>
-        <p className="text-[#7A7250] font-sans text-sm opacity-80">Next.js frontend + FastAPI backend + Groq analysis</p>
+        {metrics ? (
+          <InsightBar>
+            Your <span className="font-bold">{formatINRShort(metrics.total_invested_value)}</span> has grown to <span className="font-bold">{formatINRShort(metrics.total_current_value)}</span> — but you're paying <span className="font-bold text-[#B71C1C]">{formatINR(metrics.annual_fees)}/year</span> in fees that could be cut in half.
+          </InsightBar>
+        ) : (
+          <p className="text-[#7A7250] font-sans text-sm opacity-80">Next.js frontend + FastAPI backend + Groq analysis</p>
+        )}
       </header>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-10">
         <StatCard label="XIRR" value={metrics ? formatPct(metrics.xirr_pct) : '--'} subtextText="Calculated from dated cashflows" variant="xirr" loading={loading} />
@@ -135,11 +148,21 @@ export default function Page() {
     </>
   );
 
+  const renderFundIntelligence = () => (
+    <FundIntelligence portfolio={portfolio} metrics={metrics} analysis={analysis} />
+  );
+
   const renderTaxWizard = () => (
     <>
-      <header className="mb-12">
+      <header className="mb-8">
         <h1 className="font-display text-[42px] text-[#1C1A12] mb-3 leading-tight tracking-tight">Tax Wizard</h1>
-        <p className="text-[#7A7250] font-sans text-sm opacity-80">Capital gains harvesting + optimization</p>
+        {taxAnalysis ? (
+          <InsightBar>
+            You're potentially missing <span className="font-bold text-[#1B5E20]">{formatINR(67500)}</span> in tax savings this financial year.
+          </InsightBar>
+        ) : (
+          <p className="text-[#7A7250] font-sans text-sm opacity-80">Capital gains harvesting + optimization</p>
+        )}
       </header>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
         <StatCard label="LTCG Estimated" value={taxAnalysis ? formatINR(taxAnalysis.ltcg_estimated_inr) : '--'} subtextText="Equity > 1 year" variant="current" loading={loading} />
@@ -293,9 +316,15 @@ export default function Page() {
 
   const renderCouplesPlanner = () => (
     <>
-      <header className="mb-12">
+      <header className="mb-8">
         <h1 className="font-display text-[42px] text-[#1C1A12] mb-3 leading-tight tracking-tight">Couple's Planner</h1>
-        <p className="text-[#7A7250] font-sans text-sm opacity-80">Joint portfolio analysis + goal merging</p>
+        {couplesAnalysis ? (
+          <InsightBar>
+            Together, your <span className="font-bold">{formatINRShort(couplesAnalysis.combined_metrics.total_current_value)}</span> portfolio earns <span className="font-bold text-[#1B5E20]">{formatPct(couplesAnalysis.combined_metrics.combined_xirr_pct)} XIRR</span> — here's how to optimize it jointly.
+          </InsightBar>
+        ) : (
+          <p className="text-[#7A7250] font-sans text-sm opacity-80">Joint portfolio analysis + goal merging</p>
+        )}
       </header>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10">
         <StatCard label="Combined Value" value={couplesAnalysis ? formatINRShort(couplesAnalysis.combined_metrics.total_current_value) : '--'} variant="current" loading={loading} />
@@ -325,9 +354,15 @@ export default function Page() {
 
   const renderHealthScore = () => (
     <>
-      <header className="mb-12">
+      <header className="mb-8">
         <h1 className="font-display text-[42px] text-[#1C1A12] mb-3 leading-tight tracking-tight">Money Health Score</h1>
-        <p className="text-[#7A7250] font-sans text-sm opacity-80">Holistic financial wellness assessment</p>
+        {healthAnalysis ? (
+          <InsightBar>
+            Your financial health scores <span className="font-bold">{healthAnalysis.overall_health_score}/100</span> — strong investments, but insurance gap needs attention.
+          </InsightBar>
+        ) : (
+          <p className="text-[#7A7250] font-sans text-sm opacity-80">Holistic financial wellness assessment</p>
+        )}
       </header>
       <div className="flex flex-col lg:flex-row gap-8 items-start mb-10">
         <div className="bg-white border border-[#DDD8C0] rounded-3xl p-10 flex flex-col items-center justify-center min-w-[300px] shadow-sm">
@@ -407,6 +442,7 @@ export default function Page() {
           <div className="max-w-[1100px] mx-auto w-full">
             
             {activeTab === 'Portfolio X-Ray' && renderPortfolioXRay()}
+            {activeTab === 'Fund Intelligence' && renderFundIntelligence()}
             {activeTab === 'Tax Wizard' && renderTaxWizard()}
             {activeTab === "Couple's Planner" && renderCouplesPlanner()}
             {activeTab === 'Money Health Score' && renderHealthScore()}

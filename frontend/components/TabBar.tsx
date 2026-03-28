@@ -4,6 +4,7 @@ import React from 'react';
 
 const tabs = [
   "Portfolio X-Ray",
+  "Fund Intelligence",
   "Tax Wizard",
   "Couple's Planner",
   "Money Health Score"

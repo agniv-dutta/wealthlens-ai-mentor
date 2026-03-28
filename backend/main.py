@@ -372,6 +372,7 @@ class CouplesAnalysisPayload(BaseModel):
     combined_metrics: CombinedPortfolioMetrics
     merging_strategy: str
     key_combined_insights: list[str]
+    action_items: list[str] = []
     joint_health_grade: Literal["A", "B", "C", "D"]
 
 
@@ -386,6 +387,142 @@ class HealthScorePayload(BaseModel):
 class CouplesAnalyzeRequest(BaseModel):
     portfolio_1: list[Holding]
     portfolio_2: list[Holding]
+    partner_1_name: str = "Partner 1"
+    partner_2_name: str = "Partner 2"
+    partner_1_tax_slab_pct: float | None = Field(default=None, ge=0, le=50)
+    partner_2_tax_slab_pct: float | None = Field(default=None, ge=0, le=50)
+
+
+def _scheme_key(scheme: str) -> str:
+    base = scheme.split(" - ")[0].strip().lower()
+    return " ".join(base.replace("fund", "").split())
+
+
+def _target_allocation_from_current(asset_allocation: list[dict]) -> list[tuple[str, float, float]]:
+    preferred_targets = {
+        "Large Cap": 35.0,
+        "Flexi Cap": 20.0,
+        "Index": 15.0,
+        "Mid Cap": 15.0,
+        "Small Cap": 10.0,
+        "Debt": 5.0,
+        "Multi Cap": 10.0,
+        "Sectoral/Thematic": 5.0,
+    }
+
+    categories = [str(item.get("name", "Other")) for item in asset_allocation]
+    if not categories:
+        categories = ["Large Cap", "Flexi Cap", "Mid Cap", "Small Cap", "Debt"]
+
+    raw_targets: dict[str, float] = {}
+    for category in categories:
+        raw_targets[category] = preferred_targets.get(category, 5.0)
+
+    total_target = sum(raw_targets.values()) or 100.0
+    current_map = {str(item.get("name", "Other")): float(item.get("weight_pct", 0.0)) for item in asset_allocation}
+
+    return [
+        (category, (target / total_target) * 100.0, current_map.get(category, 0.0))
+        for category, target in raw_targets.items()
+    ]
+
+
+def _build_structured_couples_strategy(
+    *,
+    portfolio_1: list[Holding],
+    portfolio_2: list[Holding],
+    combined_metrics: dict,
+    partner_1_name: str,
+    partner_2_name: str,
+    partner_1_tax_slab_pct: float | None,
+    partner_2_tax_slab_pct: float | None,
+) -> tuple[str, list[str], str]:
+    p1_by_key = {_scheme_key(item.scheme): item for item in portfolio_1}
+    p2_by_key = {_scheme_key(item.scheme): item for item in portfolio_2}
+    duplicate_keys = sorted(set(p1_by_key).intersection(p2_by_key))
+
+    duplicate_lines: list[str] = []
+    for key in duplicate_keys:
+        p1_item = p1_by_key[key]
+        p2_item = p2_by_key[key]
+        keep = p1_item
+        keep_owner = partner_1_name
+        if (p2_item.expense_ratio < p1_item.expense_ratio) or (
+            p2_item.expense_ratio == p1_item.expense_ratio and p2_item.current_value > p1_item.current_value
+        ):
+            keep = p2_item
+            keep_owner = partner_2_name
+        duplicate_lines.append(
+            f"- {p1_item.scheme}: keep in {keep_owner}'s folio (lower cost/stronger base), and stop fresh SIP in the other folio."
+        )
+
+    if not duplicate_lines:
+        duplicate_lines.append(
+            "- No exact duplicate schemes detected; avoid adding a second scheme in the same style box unless expense and mandate are clearly superior."
+        )
+
+    if partner_1_tax_slab_pct is not None and partner_2_tax_slab_pct is not None:
+        higher_name = partner_1_name if partner_1_tax_slab_pct >= partner_2_tax_slab_pct else partner_2_name
+        lower_name = partner_2_name if higher_name == partner_1_name else partner_1_name
+        slab_line = (
+            f"- Tax slab lens: {higher_name} is in the higher slab ({max(partner_1_tax_slab_pct, partner_2_tax_slab_pct):.0f}%), "
+            f"{lower_name} is in the lower slab ({min(partner_1_tax_slab_pct, partner_2_tax_slab_pct):.0f}%)."
+        )
+    else:
+        higher_name = partner_1_name
+        lower_name = partner_2_name
+        slab_line = (
+            "- Tax slab inputs not provided; apply this rule: lower slab partner should own debt/high-turnover funds, "
+            "higher slab partner should own long-horizon equity/index holdings."
+        )
+
+    tax_split_lines = [
+        slab_line,
+        f"- Hold Debt and tactical high-churn funds in {lower_name}'s folio to reduce post-tax drag.",
+        f"- Keep long-term core equity (Index/Large/Flexi) in {higher_name}'s folio and minimize unnecessary switches.",
+    ]
+
+    target_alloc = _target_allocation_from_current(combined_metrics.get("asset_allocation", []))
+    rebalancing_lines = [
+        f"- {category}: target {target:.0f}% (current {current:.1f}%)"
+        for category, target, current in target_alloc
+    ]
+
+    action_items = [
+        "Consolidate duplicate schemes this month by redirecting new SIPs into the chosen keeper fund.",
+        "Map each fund to the lower- or higher-slab partner based on expected churn before the next SIP date.",
+        "Set SIP split to move combined allocation toward target weights over the next 3 cycles.",
+    ]
+
+    strategy = "\n".join(
+        [
+            "Duplicate Fund Consolidation",
+            *duplicate_lines,
+            "",
+            "Tax-Efficient Ownership Split",
+            *tax_split_lines,
+            "",
+            "Rebalancing Recommendation (Target Allocation)",
+            *rebalancing_lines,
+            "",
+            "Action Items",
+            *[f"- {item}" for item in action_items],
+        ]
+    )
+
+    overlap_count = len(combined_metrics.get("overlap_categories", []))
+    joint_grade = "A" if overlap_count == 0 else "B" if overlap_count <= 1 else "C"
+    return strategy, action_items, joint_grade
+
+
+def _is_structured_couples_strategy(value: str) -> bool:
+    required_headers = [
+        "Duplicate Fund Consolidation",
+        "Tax-Efficient Ownership Split",
+        "Rebalancing Recommendation",
+        "Action Items",
+    ]
+    return all(header in value for header in required_headers)
 
 
 @app.get("/health")
@@ -490,15 +627,33 @@ def analyze_tax(payload: AnalyzeRequest) -> dict:
 def analyze_couples(payload: CouplesAnalyzeRequest) -> dict:
     total_port = payload.portfolio_1 + payload.portfolio_2
     combined_metrics = _compute_metrics(total_port)
+
+    fallback_strategy, fallback_action_items, fallback_grade = _build_structured_couples_strategy(
+        portfolio_1=payload.portfolio_1,
+        portfolio_2=payload.portfolio_2,
+        combined_metrics=combined_metrics,
+        partner_1_name=payload.partner_1_name,
+        partner_2_name=payload.partner_2_name,
+        partner_1_tax_slab_pct=payload.partner_1_tax_slab_pct,
+        partner_2_tax_slab_pct=payload.partner_2_tax_slab_pct,
+    )
     
     # AI Analysis for Couples
     api_key = os.getenv("GROQ_API_KEY")
     client = Groq(api_key=api_key)
     
     user_prompt = (
-        "Analyze these two combined portfolios for a couple. "
-        "Return ONLY JSON with keys: merging_strategy, key_combined_insights (list), joint_health_grade (A/B/C/D)."
-        f"Combined Metrics: {json.dumps(combined_metrics)}"
+        "Given two partners' mutual fund portfolios with holdings, SIP cashflows, and XIRR signals, "
+        "generate a structured merging strategy. "
+        "Return ONLY JSON with keys: merging_strategy, key_combined_insights (list), joint_health_grade (A/B/C/D), action_items (list). "
+        "The merging_strategy must include these section headers exactly: "
+        "Duplicate Fund Consolidation, Tax-Efficient Ownership Split, Rebalancing Recommendation (Target Allocation), Action Items. "
+        "Do not return single-word or one-line output.\n\n"
+        f"Partner 1 Name: {payload.partner_1_name}, Tax Slab: {payload.partner_1_tax_slab_pct}\n"
+        f"Partner 2 Name: {payload.partner_2_name}, Tax Slab: {payload.partner_2_tax_slab_pct}\n"
+        f"Portfolio 1: {json.dumps([item.model_dump() for item in payload.portfolio_1], ensure_ascii=True)}\n"
+        f"Portfolio 2: {json.dumps([item.model_dump() for item in payload.portfolio_2], ensure_ascii=True)}\n"
+        f"Combined Metrics: {json.dumps(combined_metrics, ensure_ascii=True)}"
     )
     
     try:
@@ -508,12 +663,31 @@ def analyze_couples(payload: CouplesAnalyzeRequest) -> dict:
             messages=[{"role": "user", "content": user_prompt}],
         )
         parsed = _extract_json(response.choices[0].message.content)
-    except:
-        parsed = {
-            "merging_strategy": "Consolidate duplicate Large Cap holdings.",
-            "key_combined_insights": ["High overlap in Index funds", "Combined debt exposure is low"],
-            "joint_health_grade": "B"
-        }
+    except Exception:
+        parsed = {}
+
+    raw_strategy = parsed.get("merging_strategy")
+    merging_strategy = raw_strategy.strip() if isinstance(raw_strategy, str) else ""
+    if not merging_strategy or not _is_structured_couples_strategy(merging_strategy):
+        merging_strategy = fallback_strategy
+
+    raw_insights = parsed.get("key_combined_insights")
+    key_combined_insights = fallback_action_items
+    if isinstance(raw_insights, list):
+        normalized_insights = [str(item).strip() for item in raw_insights if str(item).strip()]
+        if normalized_insights:
+            key_combined_insights = normalized_insights[:5]
+
+    raw_action_items = parsed.get("action_items")
+    action_items = fallback_action_items[:3]
+    if isinstance(raw_action_items, list):
+        normalized_actions = [str(item).strip() for item in raw_action_items if str(item).strip()]
+        if len(normalized_actions) >= 2:
+            action_items = normalized_actions[:3]
+
+    grade = str(parsed.get("joint_health_grade", fallback_grade)).strip().upper()[:1]
+    if grade not in {"A", "B", "C", "D"}:
+        grade = fallback_grade
 
     return {
         "combined_metrics": {
@@ -522,7 +696,10 @@ def analyze_couples(payload: CouplesAnalyzeRequest) -> dict:
             "overlap_count": len(combined_metrics["overlap_categories"]),
             "top_categories": [a["name"] for a in combined_metrics["asset_allocation"][:3]]
         },
-        **parsed
+        "merging_strategy": merging_strategy,
+        "key_combined_insights": key_combined_insights,
+        "action_items": action_items,
+        "joint_health_grade": grade,
     }
 
 

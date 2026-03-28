@@ -352,7 +352,7 @@ export default function Page() {
       <div className="grid grid-cols-1 lg:grid-cols-[40fr_60fr] gap-6">
         <div className="bg-[#1B5E20] text-white rounded-2xl p-8 shadow-xl">
           <h3 className="font-display text-2xl mb-6">Merging Strategy</h3>
-          <p className="text-[14px] leading-relaxed opacity-90">{couplesAnalysis?.merging_strategy || 'Merging insights will appear once data is loaded.'}</p>
+          <p className="text-[14px] leading-relaxed opacity-90 whitespace-pre-line">{couplesAnalysis?.merging_strategy || 'Merging insights will appear once data is loaded.'}</p>
         </div>
         <div className="bg-white border border-[#DDD8C0] rounded-2xl p-8">
           <h3 className="font-display text-2xl mb-6">Combined Insights</h3>

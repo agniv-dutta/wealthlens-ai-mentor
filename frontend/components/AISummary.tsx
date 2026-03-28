@@ -33,7 +33,7 @@ const AISummary = ({ grade, riskLevel, keyInsights, rebalancingPlan, loading }: 
     <div className="bg-white border border-[#DDD8C0] rounded-2xl p-8 shadow-sm">
       <header className="mb-6">
         <h3 className="font-display text-2xl text-[#1C1A12] mb-1">AI Summary</h3>
-        <p className="text-xs font-sans text-[#7A7250] tracking-tight">Groq recommendation output</p>
+        <p className="text-xs font-sans text-[#7A7250] tracking-tight">Powered by AI analysis</p>
       </header>
 
       <div className="flex items-center gap-3 mb-8">

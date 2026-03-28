@@ -174,6 +174,120 @@ export default function Page() {
           </ul>
         </div>
       </div>
+
+      <div className="mt-12">
+        <h3 className="font-display text-2xl text-[#1C1A12] mb-6">Tax Regime Comparison</h3>
+        <div className="bg-white border border-[#DDD8C0] rounded-2xl overflow-hidden shadow-sm relative">
+          <div className="grid grid-cols-1 md:grid-cols-2">
+            {/* Old Regime */}
+            <div className="p-8 border-r border-[#DDD8C0]/50 bg-[#FDFAF4]/50">
+              <div className="text-[11px] font-sans font-bold text-[#7A7250] uppercase tracking-wider mb-6">Old Regime</div>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-[#4A4830]">Taxable Income</span>
+                  <span className="font-mono font-bold text-[#1C1A12]">{formatINR(1200000)}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-[#4A4830]">Tax Payable</span>
+                  <span className="font-mono font-bold text-[#B71C1C]">{formatINR(117000)}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-[#4A4830]">Effective Rate</span>
+                  <span className="font-mono font-bold text-[#1C1A12]">9.75%</span>
+                </div>
+                <div className="pt-4 border-t border-[#DDD8C0]/30 flex justify-between items-center">
+                  <span className="text-xs font-bold text-[#7A7250] uppercase">Annual Take-home</span>
+                  <span className="text-xl font-display font-bold text-[#1C1A12]">{formatINR(1083000)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* New Regime */}
+            <div className="p-8 bg-[#DCEDC8]/10 border-2 border-[#1B5E20] m-[-2px] rounded-2xl relative z-10">
+              <div className="flex justify-between items-start mb-6">
+                <div className="text-[11px] font-sans font-bold text-[#1B5E20] uppercase tracking-wider">New Regime (Recommended)</div>
+                <div className="px-2 py-0.5 bg-[#C5E1A5] text-[#1B5E20] text-[9px] font-bold rounded uppercase">Best Value</div>
+              </div>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-[#4A4830]">Taxable Income</span>
+                  <span className="font-mono font-bold text-[#1C1A12]">{formatINR(1200000)}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-[#4A4830]">Tax Payable</span>
+                  <span className="font-mono font-bold text-[#1B5E20]">{formatINR(90000)}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-[#4A4830]">Effective Rate</span>
+                  <span className="font-mono font-bold text-[#1C1A12]">7.50%</span>
+                </div>
+                <div className="pt-4 border-t border-[#1B5E20]/20 flex justify-between items-center">
+                  <span className="text-xs font-bold text-[#1B5E20] uppercase">Annual Take-home</span>
+                  <span className="text-xl font-display font-bold text-[#1B5E20]">{formatINR(1110000)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Savings Banner */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:block z-20">
+            <div className="bg-[#1B5E20] text-white px-6 py-2 rounded-full shadow-lg text-sm font-bold whitespace-nowrap">
+              Switch to new regime → Save {formatINR(27000)}/year
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-12 bg-white border border-[#DDD8C0] rounded-2xl overflow-hidden shadow-sm">
+        <header className="p-8 pb-4">
+          <h3 className="font-display text-2xl text-[#1C1A12] mb-1">Missed Deductions</h3>
+          <p className="text-xs font-sans text-[#7A7250] opacity-70">Optimization opportunities for your current profile</p>
+        </header>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-[#E6DDBE] border-b border-[#DDD8C0]">
+                <th className="px-8 py-3 text-[11px] font-sans font-bold uppercase tracking-wider text-[#7A7250]">Section</th>
+                <th className="px-6 py-3 text-[11px] font-sans font-bold uppercase tracking-wider text-[#7A7250]">Description</th>
+                <th className="px-6 py-3 text-[11px] font-sans font-bold uppercase tracking-wider text-[#7A7250] text-right">Current</th>
+                <th className="px-6 py-3 text-[11px] font-sans font-bold uppercase tracking-wider text-[#7A7250] text-right">Max Limit</th>
+                <th className="px-8 py-3 text-[11px] font-sans font-bold uppercase tracking-wider text-[#7A7250] text-right">Potential Saving</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#DDD8C0]/30 text-[13px] font-sans text-[#4A4830]">
+              <tr className="bg-[#FDFAF4] hover:bg-[#F2EDD8] transition-colors">
+                <td className="px-8 py-4 font-bold">80C</td>
+                <td className="px-6 py-4">ELSS, EPF, LIC, PPF etc.</td>
+                <td className="px-6 py-4 text-right font-mono text-[#7A7250]">{formatINR(0)}</td>
+                <td className="px-6 py-4 text-right font-mono text-[#1C1A12]">{formatINR(150000)}</td>
+                <td className="px-8 py-4 text-right font-mono font-bold text-[#1B5E20]">{formatINR(45000)}</td>
+              </tr>
+              <tr className="bg-[#F2EDD8] hover:bg-[#EDE6CC] transition-colors">
+                <td className="px-8 py-4 font-bold">80D</td>
+                <td className="px-6 py-4">Health Insurance Premiums</td>
+                <td className="px-6 py-4 text-right font-mono text-[#7A7250]">{formatINR(0)}</td>
+                <td className="px-6 py-4 text-right font-mono text-[#1C1A12]">{formatINR(25000)}</td>
+                <td className="px-8 py-4 text-right font-mono font-bold text-[#1B5E20]">{formatINR(7500)}</td>
+              </tr>
+              <tr className="bg-[#FDFAF4] hover:bg-[#F2EDD8] transition-colors">
+                <td className="px-8 py-4 font-bold">80CCD(1B)</td>
+                <td className="px-6 py-4">NPS Tier 1 Contributions</td>
+                <td className="px-6 py-4 text-right font-mono text-[#7A7250]">{formatINR(0)}</td>
+                <td className="px-6 py-4 text-right font-mono text-[#1C1A12]">{formatINR(50000)}</td>
+                <td className="px-8 py-4 text-right font-mono font-bold text-[#1B5E20]">{formatINR(15000)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="mt-8 bg-[#1B5E20] rounded-2xl p-10 shadow-xl text-center group hover:scale-[1.005] transition-transform">
+        <h4 className="text-[#C5E1A5] font-sans font-bold uppercase tracking-[0.2em] text-xs mb-4 opacity-80">Final Optimization Potential</h4>
+        <div className="text-white font-display text-4xl md:text-5xl font-bold mb-4 tracking-tight">
+          You could save {formatINR(67500)} more in taxes
+        </div>
+        <p className="text-[#C5E1A5] text-sm opacity-70">Based on missed section 80C, 80D and NPS deductions</p>
+      </div>
     </>
   );
 

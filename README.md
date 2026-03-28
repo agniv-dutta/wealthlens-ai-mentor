@@ -7,222 +7,228 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
 
-WealthLens AI Mentor is a practical AI-assisted portfolio intelligence app for Indian mutual fund users.
+WealthLens AI Mentor is an AI-assisted portfolio intelligence application for Indian mutual fund investors.
 
-It combines deterministic financial calculations (XIRR, ROI, fees, overlap, asset allocation) with LLM-generated recommendations so users can move from raw holdings to actionable decisions quickly.
+It combines deterministic calculations (ROI, XIRR, fees, overlap, allocation) with LLM-generated guidance so users can move from holdings data to practical action.
 
-## What Problem We Are Solving
+## Latest Enhancements
 
-Retail investors often struggle with:
+### Platform and Architecture
+- Consolidated to a single frontend surface: Next.js in `frontend/`.
+- Root scripts now orchestrate frontend from the repository root.
+- API base configuration aligned to backend on `127.0.0.1:8001`.
 
-- Understanding real performance beyond simple returns.
-- Detecting portfolio concentration and category overlap.
-- Estimating tax implications and harvesting opportunities.
-- Getting practical rebalancing suggestions in plain language.
-- Combining two portfolios (for couples/families) into a coherent strategy.
+### Metrics and Reliability
+- Added per-fund XIRR computation using fund-level synthetic SIP cashflows.
+- Exposed per-fund XIRR in response payload as `metrics.fund_xirr_pct`.
+- Added optional `sip_cashflows` on holdings to support dated installment modeling.
+- Hardened XIRR calculation with safe guards for invalid flow combinations and non-finite results.
+- Kept robust AI normalization and deterministic fallback behavior to avoid endpoint breakage on malformed LLM output.
 
-This project solves that by exposing a backend API that computes reliable metrics and then enriches them with Groq-powered advisory summaries.
+### Fund Intelligence UX
+- Portfolio Heatmap XIRR is now fund-specific instead of one portfolio-wide value.
+- Overlap matrix headers were redesigned to fixed horizontal short labels:
+  - Mirae LC
+  - Axis BC
+  - Parag FC
+  - HDFC MC
+  - Nippon SC
+  - SBI Index
+- Performance vs Benchmarks card now uses `var(--bg-surface)` background.
+- Recharts benchmark chart area is transparent to inherit card background.
 
-## What This App Does
+### Reporting and Print Export
+- Added `Export Report` button in the topbar.
+- Click action triggers browser print (`window.print()`).
+- Added print stylesheet in `frontend/app/layout.tsx` (`<style media="print">`) with:
+  - A4 portrait format
+  - hidden topbar buttons, sidebar, and tab bars
+  - print-focused WealthLens report header + date
+  - print footer: `Confidential - for educational purposes only`
+  - `var(--bg-base)` page background
+- Added a print-only report composition for Portfolio X-Ray sections:
+  - stats
+  - allocation
+  - AI summary
+  - holdings table
 
-- Portfolio X-Ray:
-	- Computes deterministic metrics from holdings and purchase dates.
-	- Generates AI insights, health grade, and rebalancing plan.
-- Tax Wizard:
-	- Estimates STCG and LTCG.
-	- Flags potential tax harvesting ideas.
-	- Produces AI tax insights and tax efficiency grade.
-- Couple's Planner:
-	- Merges two portfolios.
-	- Computes combined metrics and overlap.
-	- Produces AI merger strategy and joint grade.
-- Money Health Score:
-	- Produces a holistic score and supporting insights.
+## What Problem This Solves
+
+Retail investors commonly struggle with:
+- Measuring performance beyond simple gain/loss.
+- Identifying overlap and concentration risk.
+- Estimating tax impact and identifying harvesting options.
+- Getting concise rebalancing suggestions.
+- Combining two portfolios into one coherent strategy.
+
+WealthLens addresses this with deterministic metrics plus AI-assisted recommendations.
+
+## Current Feature Set
+
+- Portfolio X-Ray
+  - deterministic portfolio metrics
+  - AI summary, risk posture, health grade, rebalancing plan
+- Fund Intelligence
+  - heatmap, overlap matrix, expense drag, benchmark comparison, simulator
+- Tax Wizard
+  - STCG/LTCG estimation and harvesting suggestions
+- Couple's Planner
+  - combined metrics and joint strategy insights
+- Money Health Score
+  - overall score and category-specific health insights
 
 ## Architecture Overview
 
-- Backend: FastAPI service in `backend/`.
-- LLM provider: Groq API using `llama-3.3-70b-versatile`.
-- Frontend: Next.js UI in `frontend/`.
+- Backend: FastAPI service in `backend/`
+- LLM: Groq model `llama-3.3-70b-versatile`
+- Frontend: Next.js app in `frontend/`
 
 Request flow:
-
 1. Frontend requests demo portfolio from backend.
-2. Frontend sends portfolio to analysis endpoints.
+2. Frontend submits holdings to analysis endpoints.
 3. Backend computes deterministic metrics.
-4. Backend calls Groq for narrative recommendations.
-5. Backend normalizes/fallbacks malformed model output for robustness.
-6. Frontend renders cards, charts, and insight panels.
+4. Backend requests narrative output from Groq.
+5. Backend normalizes AI output and falls back safely if needed.
+6. Frontend renders analytics views and report UI.
 
 ## Repository Structure
 
 ```text
 wealthlens-ai-mentor/
-	backend/                # FastAPI + Groq logic
-	frontend/               # Next.js app
-	README.md
+  backend/                # FastAPI + deterministic + AI orchestration
+  frontend/               # Next.js app UI
+  package.json            # root orchestration scripts
+  README.md
 ```
 
 ## Quick Start
 
-### 1) Backend (FastAPI)
+### Option A: Run from root (frontend only)
+
+```bash
+npm install
+npm run dev
+```
+
+This starts frontend at `http://127.0.0.1:3000`.
+
+### Option B: Run backend and frontend separately
+
+Backend:
 
 ```bash
 cd backend
 python -m venv .venv
-```
-
-Activate venv:
-
-```bash
-# Windows PowerShell
+# Windows PowerShell:
 .venv\Scripts\activate
-
-# macOS/Linux
-source .venv/bin/activate
-```
-
-Install and run:
-
-```bash
+# macOS/Linux:
+# source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn main:app --host 127.0.0.1 --port 8001 --reload
 ```
 
-### 2) Next.js Frontend
+Frontend:
 
 ```bash
 cd frontend
 npm install
-```
-
-Create `frontend/.env.local`:
-
-```env
-NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8001
-```
-
-Run:
-
-```bash
 npm run dev -- --hostname 127.0.0.1 --port 3000
 ```
 
 ## Environment Variables
 
-### Backend
-
-Create `backend/.env`:
+### Backend (`backend/.env`)
 
 ```env
 GROQ_API_KEY=your_real_groq_api_key
 ```
 
-Notes:
-
-- Do not commit real secrets.
-- `.env` and local env files are gitignored.
-
-### Frontend (Next.js)
+### Frontend (`frontend/.env.local`)
 
 ```env
 NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8001
 ```
 
-## API Documentation
+Notes:
+- Never commit real API keys.
+- Local env and build artifacts are gitignored.
 
-Base URL (local):
+## API Reference
 
-`http://127.0.0.1:8001`
+Base URL (local): `http://127.0.0.1:8001`
 
-### Health
-
-#### GET `/health`
-
-Purpose:
-- Liveness check for backend.
-
-Response:
+### GET /health
+Returns backend liveness.
 
 ```json
-{
-	"ok": true
-}
+{ "ok": true }
 ```
 
----
-
-### Demo Data Endpoints
-
-#### GET `/api/demo-portfolio`
-
-Purpose:
-- Returns primary demo holdings and computed deterministic metrics.
+### GET /api/demo-portfolio
+Returns demo holdings and computed metrics.
 
 Response shape:
 
 ```json
 {
-	"portfolio": [
-		{
-			"scheme": "string",
-			"current_value": 0,
-			"invested": 0,
-			"units": 0,
-			"nav": 0,
-			"expense_ratio": 0,
-			"category": "string",
-			"purchase_date": "YYYY-MM-DD"
-		}
-	],
-	"metrics": {
-		"total_current_value": 0,
-		"total_invested_value": 0,
-		"absolute_gain": 0,
-		"roi_pct": 0,
-		"annual_fees": 0,
-		"xirr_pct": 0,
-		"asset_allocation": [
-			{ "name": "string", "value": 0, "weight_pct": 0 }
-		],
-		"overlap_categories": ["string"]
-	}
+  "portfolio": [
+    {
+      "scheme": "string",
+      "current_value": 0,
+      "invested": 0,
+      "units": 0,
+      "nav": 0,
+      "expense_ratio": 0,
+      "category": "string",
+      "purchase_date": "YYYY-MM-DD",
+      "sip_cashflows": [
+        { "date": "YYYY-MM-DD", "amount": 0 }
+      ]
+    }
+  ],
+  "metrics": {
+    "total_current_value": 0,
+    "total_invested_value": 0,
+    "absolute_gain": 0,
+    "roi_pct": 0,
+    "annual_fees": 0,
+    "xirr_pct": 0,
+    "fund_xirr_pct": {
+      "Fund Name": 0
+    },
+    "asset_allocation": [
+      { "name": "string", "value": 0, "weight_pct": 0 }
+    ],
+    "overlap_categories": ["string"]
+  }
 }
 ```
 
-#### GET `/api/demo-secondary-portfolio`
+### GET /api/demo-secondary-portfolio
+Returns spouse/secondary demo portfolio and metrics.
 
-Purpose:
-- Returns secondary demo portfolio used by Couple's Planner.
-
-Response:
-- Same shape as `/api/demo-portfolio`.
-
----
-
-### Portfolio X-Ray
-
-#### POST `/api/portfolio/analyze`
-
-Purpose:
-- Computes deterministic metrics and AI advisory output.
+### POST /api/portfolio/analyze
+Returns deterministic metrics plus AI analysis.
 
 Request body:
 
 ```json
 {
-	"portfolio": [
-		{
-			"scheme": "Parag Parikh Flexi Cap",
-			"current_value": 125000,
-			"invested": 100000,
-			"units": 1500,
-			"nav": 83.33,
-			"expense_ratio": 1.2,
-			"category": "Flexi Cap",
-			"purchase_date": "2022-01-15"
-		}
-	]
+  "portfolio": [
+    {
+      "scheme": "string",
+      "current_value": 0,
+      "invested": 0,
+      "units": 0,
+      "nav": 0,
+      "expense_ratio": 0,
+      "category": "string",
+      "purchase_date": "YYYY-MM-DD",
+      "sip_cashflows": [
+        { "date": "YYYY-MM-DD", "amount": 0 }
+      ]
+    }
+  ]
 }
 ```
 
@@ -230,216 +236,87 @@ Response body:
 
 ```json
 {
-	"portfolio": [],
-	"metrics": {
-		"total_current_value": 0,
-		"total_invested_value": 0,
-		"absolute_gain": 0,
-		"roi_pct": 0,
-		"annual_fees": 0,
-		"xirr_pct": 0,
-		"asset_allocation": [],
-		"overlap_categories": []
-	},
-	"analysis": {
-		"rebalancing_plan": [
-			{
-				"action": "buy",
-				"scheme": "string",
-				"reason": "string",
-				"amount_inr": 0
-			}
-		],
-		"key_insights": ["string"],
-		"risk_assessment": "moderate",
-		"health_grade": "B",
-		"one_line_summary": "string"
-	}
+  "portfolio": [],
+  "metrics": {
+    "total_current_value": 0,
+    "total_invested_value": 0,
+    "absolute_gain": 0,
+    "roi_pct": 0,
+    "annual_fees": 0,
+    "xirr_pct": 0,
+    "fund_xirr_pct": {},
+    "asset_allocation": [],
+    "overlap_categories": []
+  },
+  "analysis": {
+    "rebalancing_plan": [
+      {
+        "action": "buy",
+        "scheme": "string",
+        "reason": "string",
+        "amount_inr": 0
+      }
+    ],
+    "key_insights": ["string"],
+    "risk_assessment": "moderate",
+    "health_grade": "B",
+    "one_line_summary": "string"
+  }
 }
 ```
 
 Status codes:
+- `200` success
+- `400` invalid payload or empty portfolio
+- `500` backend configuration issue (e.g., missing/placeholder key)
+- `502` Groq call failure
 
-- `200`: success.
-- `400`: invalid payload or empty portfolio.
-- `500`: missing/placeholder API key.
-- `502`: Groq call failure.
+### POST /api/tax/analyze
+Returns STCG/LTCG estimates, harvesting suggestions, and tax insights.
 
----
+### POST /api/couples-planner/analyze
+Returns combined metrics and joint strategy insights.
 
-### Tax Wizard
-
-#### POST `/api/tax/analyze`
-
-Purpose:
-- Returns tax estimates, harvesting suggestions, and AI tax guidance.
-
-Request body:
-
-```json
-{
-	"portfolio": [
-		{
-			"scheme": "string",
-			"current_value": 0,
-			"invested": 0,
-			"units": 0,
-			"nav": 0,
-			"expense_ratio": 0,
-			"category": "string",
-			"purchase_date": "YYYY-MM-DD"
-		}
-	]
-}
-```
-
-Response body:
-
-```json
-{
-	"stcg_estimated_inr": 0,
-	"ltcg_estimated_inr": 0,
-	"tax_harvesting_suggestions": [
-		{
-			"scheme": "string",
-			"harvestable_loss_inr": 0,
-			"reason": "string"
-		}
-	],
-	"tax_efficiency_grade": "B",
-	"key_tax_insights": ["string"]
-}
-```
-
----
-
-### Couple's Planner
-
-#### POST `/api/couples-planner/analyze`
-
-Purpose:
-- Combines two portfolios and returns strategy + insights.
-
-Request body:
-
-```json
-{
-	"portfolio_1": [
-		{
-			"scheme": "string",
-			"current_value": 0,
-			"invested": 0,
-			"units": 0,
-			"nav": 0,
-			"expense_ratio": 0,
-			"category": "string",
-			"purchase_date": "YYYY-MM-DD"
-		}
-	],
-	"portfolio_2": [
-		{
-			"scheme": "string",
-			"current_value": 0,
-			"invested": 0,
-			"units": 0,
-			"nav": 0,
-			"expense_ratio": 0,
-			"category": "string",
-			"purchase_date": "YYYY-MM-DD"
-		}
-	]
-}
-```
-
-Response body:
-
-```json
-{
-	"combined_metrics": {
-		"total_current_value": 0,
-		"combined_xirr_pct": 0,
-		"overlap_count": 0,
-		"top_categories": ["string"]
-	},
-	"merging_strategy": "string",
-	"key_combined_insights": ["string"],
-	"joint_health_grade": "B"
-}
-```
-
----
-
-### Money Health Score
-
-#### POST `/api/health-score/analyze`
-
-Purpose:
-- Returns a consolidated health score and readiness indicators.
-
-Request body:
-
-```json
-{
-	"portfolio": [
-		{
-			"scheme": "string",
-			"current_value": 0,
-			"invested": 0,
-			"units": 0,
-			"nav": 0,
-			"expense_ratio": 0,
-			"category": "string",
-			"purchase_date": "YYYY-MM-DD"
-		}
-	]
-}
-```
-
-Response body:
-
-```json
-{
-	"overall_health_score": 72,
-	"emergency_fund_status": "Partial",
-	"insurance_coverage_score": 60,
-	"retirement_readiness_pct": 45.0,
-	"health_insights": ["string", "string", "string"]
-}
-```
+### POST /api/health-score/analyze
+Returns overall score and health insights.
 
 ## cURL Examples
 
-### Demo Portfolio
+Demo portfolio:
 
 ```bash
 curl http://127.0.0.1:8001/api/demo-portfolio
 ```
 
-### Portfolio Analysis
+Portfolio analyze:
 
 ```bash
 curl -X POST http://127.0.0.1:8001/api/portfolio/analyze \
-	-H "Content-Type: application/json" \
-	-d '{"portfolio":[{"scheme":"Test Fund","current_value":100000,"invested":90000,"units":1000,"nav":100,"expense_ratio":1.0,"category":"Large Cap","purchase_date":"2023-01-01"}]}'
+  -H "Content-Type: application/json" \
+  -d '{"portfolio":[{"scheme":"Test Fund","current_value":100000,"invested":90000,"units":1000,"nav":100,"expense_ratio":1.0,"category":"Large Cap","purchase_date":"2023-01-01"}]}'
 ```
 
-## Notes on Reliability
+## Reliability Notes
 
-- The backend uses deterministic math for core metrics.
-- LLM output is normalized before validation to handle schema drift.
-- If model JSON is malformed, a fallback analysis is generated to avoid frontend breakage.
+- Core portfolio math is deterministic and does not depend on LLM output.
+- AI output is normalized before schema validation.
+- Fallback analysis is returned when AI payload shape is invalid.
+- Fund-level XIRR is computed from dated per-fund cashflows where provided.
 
-## Current Scope and Future Extensions
+## Scope and Next Steps
 
 Current scope:
+- demo-data-driven workflow
+- portfolio/tax/couples/health API endpoints
+- single Next.js frontend experience
+- print/export support for Portfolio X-Ray report
 
-- Demo-data-driven workflow.
-- Portfolio/tax/couples/health analysis APIs.
-- Two frontend surfaces (Next and Vite).
+Potential next steps:
+- CAS PDF ingestion
+- authentication and persistence
+- historical trends and alerting
+- benchmark/backtesting modules
 
-Future extensions:
+## Disclaimer
 
-- CAS PDF parser ingestion pipeline.
-- User auth and portfolio persistence.
-- Historical trend charts and alerts.
-- Backtesting and benchmark comparison.
+This application is for educational purposes only and is not SEBI-registered investment advice.

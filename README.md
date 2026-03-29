@@ -429,10 +429,10 @@ This application is for educational purposes only and is not SEBI-registered inv
 
 ## Contributors
 
-Agniv Dutta
+[Agniv Dutta](https://github.com/agniv-dutta)
 
-Aditya Choudhuri
+[Aditya Choudhuri](https://github.com/AdityaC-07)
 
-Ankit Datta
+[Ankit Datta](https://github.com/ankit-281)
 
-Aditya Gupta
+[Aditya Gupta](https://github.com/adi-1080)

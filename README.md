@@ -430,6 +430,9 @@ This application is for educational purposes only and is not SEBI-registered inv
 ## Contributors
 
 Agniv Dutta
+
 Aditya Choudhuri
+
 Ankit Datta
+
 Aditya Gupta

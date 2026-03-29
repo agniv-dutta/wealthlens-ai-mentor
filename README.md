@@ -396,6 +396,10 @@ curl -X POST http://127.0.0.1:8001/api/couples-planner/analyze \
   }'
 ```
 
+## Demo Video
+
+https://youtu.be/KceDwBIOipk
+
 ## Reliability Notes
 
 - Core portfolio math is deterministic and does not depend on LLM output.
@@ -422,3 +426,10 @@ Potential next steps:
 ## Disclaimer
 
 This application is for educational purposes only and is not SEBI-registered investment advice.
+
+## Contributors
+
+Agniv Dutta
+Aditya Choudhuri
+Ankit Datta
+Aditya Gupta
